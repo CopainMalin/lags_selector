@@ -17,6 +17,7 @@ datasetsforecast = "^0.0.8"
 lightgbm = "^4.2.0"
 matplotlib = "^3.8.2"
 seaborn = "^0.13.1"
+ipykernel = "^6.29.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
