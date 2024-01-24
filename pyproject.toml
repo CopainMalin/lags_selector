@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "lagsselector"
+version = "0.1.0"
+description = "A small module to perform lags selection with MLForecast forecaster and SHAP explainer !"
+authors = ["CopainMalin <bgautier3800@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+mlforecast = "^0.11.6"
+numpy = "^1.26.3"
+pandas = "^2.2.0"
+shap = "^0.44.0"
+scikit-learn = "^1.4.0"
+tqdm = "^4.66.1"
+datasetsforecast = "^0.0.8"
+lightgbm = "^4.2.0"
+matplotlib = "^3.8.2"
+seaborn = "^0.13.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
