@@ -36,7 +36,7 @@ def plot_scoring(
     )
     plt.legend()
     if save_path is not None:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
     else:
         plt.show()
 
@@ -81,7 +81,7 @@ def plot_rfe_score(
         fontweight="bold",
     )
     if save_path is not None:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
     else:
         plt.show()
 
@@ -133,6 +133,6 @@ def plot_paths(
     cbar.set_ticklabels(["Prediction contribution", "Error contribution"])
 
     if save_path is not None:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
     else:
         plt.show()
