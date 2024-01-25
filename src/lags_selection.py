@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime
 from mlforecast import MLForecast
 from mlforecast.target_transforms import Differences
 from numpy import abs as nabs, arange, ndarray
@@ -20,6 +21,7 @@ from tqdm import tqdm
 from typing import Tuple, Callable, Union, List, Literal
 
 
+from src.logs import logging_call, logging_call_with_time, init_logger
 from src.subsets import Subsets
 from src.plot_tools import plot_scoring, plot_rfe_score, plot_paths
 
@@ -40,6 +42,12 @@ class LagsSelector(BaseEstimator):
         lags: Union[ndarray, list] = arange(1, 12),
         target_transforms: List[Callable] = [Differences([1])],
     ) -> None:
+        self.logger = init_logger(
+            filename=f"{str(datetime.now())}_{estimator.__repr__()}.log"
+        )
+        self.logger.info(
+            f"Initializing LagsSelector with the following parameters :\n-estimator: {estimator.__repr__()}\n-freq: {freq}\n-lags: {lags}\n-target_transforms: {[x.__repr__() for x in target_transforms]}"
+        )
         self.estimator = estimator
         self.freq = freq
         self.features = lags.tolist() if isinstance(lags, ndarray) else lags
@@ -227,6 +235,8 @@ class LagsSelector(BaseEstimator):
         Returns:
             Tuple[MLForecast, float]: The best forecaster and its score on the validation set.
         """
+        self.logger.info("------------------------------------------")
+        self.logger.info(f"Starting recursive feature elimination, method : {method}")
         return self.__recursive_feature_elimination(
             forecaster=forecaster,
             sets=self.sets,
@@ -552,27 +562,30 @@ class LagsSelector(BaseEstimator):
             self.prediction_rfe_results_ = rfe_results
         return best_forecaster_, self.best_params_
 
-    def __recursive_feature_elimination(
+    @logging_call_with_time(lambda self: self.logger)
+    def __performm_recursive_feature_iterations(
         self,
-        forecaster: MLForecast,
         sets: Subsets,
+        features: List,
+        rfe_results: DataFrame,
+        ref_mae: float,
         explainer: str,
         method: Literal["error", "prediction", "both"],
-    ) -> Tuple[MLForecast, float]:
-        """Perform the recursive feature elimination process.
+    ) -> DataFrame:
+        """Subroutine that performs the iterations of the RFE process.
 
         Args:
-            forecaster (MLForecast): The forecaster to use.
-            sets (Subsets): The Subsets object based on the time serie dataframe.
-            shap_explainer (str): The SHAP explainer to use.
-            method (Literal["error", "prediction", "both"]): The method to use in the recursive feature elimination process. If both, performs both methods and keep the one giving the best score on the test set.
+            sets (Subsets): The Subsets object containing the training and validation sets.
+            features (List): The list of lags to evaluate.
+            rfe_results (DataFrame): The dataframe containing the results of the recursive feature elimination process.
+            ref_mae (float) : The MAE of the forecaster on the validation set with all lags included.
+            explainer (str): The SHAP explainer to use.
+            method (Literal["error", "prediction", "both"]): The method to use in the recursive feature elimination process.
 
         Returns:
-            Tuple[MLForecast, float]: The best forecaster and its score on the validation set.
+            DataFrame: The updated dataframe containing the results of the recursive feature elimination process.
         """
-        ref_mae = self.__calculate_ref_mae(forecaster, sets)
-        rfe_results, features = self.__initialize_rfe()
-        for iteration in tqdm(range(len(features))):
+        for iteration in range(len(features)):
             candidate, new_sets = self.__build_forecaster_and_sets(
                 estimator=self.estimator,
                 features=features,
@@ -602,6 +615,31 @@ class LagsSelector(BaseEstimator):
                 prediction_contribution,
                 error_contribution,
             )
+        return rfe_results
 
+    @logging_call_with_time(lambda self: self.logger)
+    def __recursive_feature_elimination(
+        self,
+        forecaster: MLForecast,
+        sets: Subsets,
+        explainer: str,
+        method: Literal["error", "prediction", "both"],
+    ) -> Tuple[MLForecast, float]:
+        """Perform the recursive feature elimination process.
+
+        Args:
+            forecaster (MLForecast): The forecaster to use.
+            sets (Subsets): The Subsets object based on the time serie dataframe.
+            shap_explainer (str): The SHAP explainer to use.
+            method (Literal["error", "prediction", "both"]): The method to use in the recursive feature elimination process. If both, performs both methods and keep the one giving the best score on the test set.
+
+        Returns:
+            Tuple[MLForecast, float]: The best forecaster and its score on the validation set.
+        """
+        ref_mae = self.__calculate_ref_mae(forecaster, sets)
+        rfe_results, features = self.__initialize_rfe()
+        rfe_results = self.__performm_recursive_feature_iterations(
+            sets, features, rfe_results, ref_mae, explainer, method
+        )
         best_forecaster_, best_score_ = self.__finalize_rfe(rfe_results, method)
         return best_forecaster_, best_score_
